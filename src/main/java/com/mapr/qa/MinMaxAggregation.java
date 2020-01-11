@@ -41,7 +41,7 @@ public class MinMaxAggregation {
     final String wellid_logid_pt_idx_desc = "wellid_logid_pt_idx_desc";
     final String wellid_logid_pt_idx_asc_tags_included = "wellid_logid_pt_idx_asc_tags_included";
     final String wellIdLogId = "wellsId_logId";
-
+    Map<String, TagMinMaxValue> tagsMinMaxMap = new HashMap<>();
 
     static {
         mConnection = DriverManager.getConnection(CONNECTION_URL);
@@ -56,7 +56,9 @@ public class MinMaxAggregation {
             MinMaxAggregation lminMinMaxAggregation = new MinMaxAggregation();
 
     //        lminMinMaxAggregation.findMinMaxWithParallelQueries();
-            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap();
+            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(1);
+
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -83,16 +85,26 @@ public class MinMaxAggregation {
             this.minId = minId;
             this.maxId = maxId;
         }
+
+        @Override
+        public String toString() {
+            return "TagMinMaxValue{" +
+                    "processedTimeMin=" + processedTimeMin +
+                    ", processedTimeMax=" + processedTimeMax +
+                    ", minId='" + minId + '\'' +
+                    ", maxId='" + maxId + '\'' +
+                    '}';
+        }
     }
-    private void findMinMaxWithSingleQueryAndHashMap() {
+    private void findMinMaxWithSingleQueryAndHashMap(int lNumTimes) {
         try {
 
-            Map<String, TagMinMaxValue> tagsMinMaxMap = new HashMap<>();
+
             List<String> tagsList = new ArrayList<>();
             for(int i=0; i< numTags; i++){
                 tagsList.add("tags.tag" + i);
             }
-            for (int j = 0; j < numTimes; j++) {
+            for (int j = 0; j < lNumTimes; j++) {
 
 
                 //entire range with Equality filter and tags exist
@@ -130,6 +142,11 @@ public class MinMaxAggregation {
                             });
                         }
                     }
+                }
+
+
+                for(Map.Entry<String, TagMinMaxValue> entry : tagsMinMaxMap.entrySet()){
+                    System.out.println("key : " + entry.getKey() + " " + entry.getValue());
                 }
             }
         } catch (Exception e) {
