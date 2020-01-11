@@ -148,6 +148,7 @@ public class MinMaxAggregation {
                 for(Map.Entry<String, TagMinMaxValue> entry : tagsMinMaxMap.entrySet()){
                     System.out.println("key : " + entry.getKey() + " " + entry.getValue());
                 }
+                System.out.println();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -418,6 +419,7 @@ public class MinMaxAggregation {
                 .where(lCondEqAndTagsExist)
                 .orderBy(processedTime, SortOrder.ASC)
                 .setOption(OjaiOptions.OPTION_USE_INDEX, wellid_logid_pt_idx_asc_tags_included)
+                .limit(1000)
                 .build();
 
 
