@@ -56,7 +56,7 @@ public class MinMaxAggregation {
             MinMaxAggregation lminMinMaxAggregation = new MinMaxAggregation();
 
     //        lminMinMaxAggregation.findMinMaxWithParallelQueries();
-            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(1);
+            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(10);
 
 
         } catch (Exception e) {
@@ -417,7 +417,6 @@ public class MinMaxAggregation {
         lQueryAscEqAndTagsExist.select(DocumentConstants.ID_KEY, processedTime, tags)
                 .where(lCondEqAndTagsExist)
                 .orderBy(processedTime, SortOrder.ASC)
-                .limit(lLimit)
                 .setOption(OjaiOptions.OPTION_USE_INDEX, wellid_logid_pt_idx_asc_tags_included)
                 .build();
 
