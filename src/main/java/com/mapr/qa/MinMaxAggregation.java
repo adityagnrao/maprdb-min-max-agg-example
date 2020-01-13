@@ -63,7 +63,7 @@ public class MinMaxAggregation {
             long endTime = System.currentTimeMillis();
             System.out.println("time for findMinMaxWithParallelQueries : " + (endTime - startTime) + "ms");
             startTime = System.currentTimeMillis();
-            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(1000);
+            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(1);
             endTime = System.currentTimeMillis();
             System.out.println("time for findMinMaxWithSingleQueryAndHashMap : " + (endTime - startTime) + "ms");
 
