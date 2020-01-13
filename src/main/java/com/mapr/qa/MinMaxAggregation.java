@@ -9,8 +9,10 @@ import org.ojai.DocumentConstants;
 import org.ojai.json.Json;
 import org.ojai.store.*;
 import org.ojai.types.OTimestamp;
+import org.ojai.util.Documents;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MinMaxAggregation {
 
@@ -23,7 +25,7 @@ public class MinMaxAggregation {
             "/com.mapr.qa.jsondb.tests.secondaryindex.query.QueryMultiIndex" +
             "/testQueryMultiIdxAscDescOnIdxNonCovWithAndMatchesProjectOnAnyFunctional0";
 
-    static int numThreads = 100;
+    static int numThreads = 50;
     static int numTimes = 10000000;
     static int numTags = 50;
     int lLimit = 1;
@@ -40,6 +42,7 @@ public class MinMaxAggregation {
     final String wellid_logid_pt_idx_asc = "wellid_logid_pt_idx_asc";
     final String wellid_logid_pt_idx_desc = "wellid_logid_pt_idx_desc";
     final String wellid_logid_pt_idx_asc_tags_included = "wellid_logid_pt_idx_asc_tags_included";
+    final String wellid_logid_pt_idx_desc_tags_included = "wellid_logid_pt_idx_desc_tags_included";
     final String wellIdLogId = "wellsId_logId";
     Map<String, TagMinMaxValue> tagsMinMaxMap = new HashMap<>();
 
@@ -55,9 +58,14 @@ public class MinMaxAggregation {
             //lminMinMaxAggregation.createAndLoadTable();
             MinMaxAggregation lminMinMaxAggregation = new MinMaxAggregation();
 
-    //        lminMinMaxAggregation.findMinMaxWithParallelQueries();
-            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(10);
-
+            long startTime = System.currentTimeMillis();
+            lminMinMaxAggregation.findMinMaxWithParallelQueries(1);
+            long endTime = System.currentTimeMillis();
+            System.out.println("time for findMinMaxWithParallelQueries : " + (endTime - startTime) + "ms");
+            startTime = System.currentTimeMillis();
+            lminMinMaxAggregation.findMinMaxWithSingleQueryAndHashMap(1000);
+            endTime = System.currentTimeMillis();
+            System.out.println("time for findMinMaxWithSingleQueryAndHashMap : " + (endTime - startTime) + "ms");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -105,41 +113,85 @@ public class MinMaxAggregation {
                 tagsList.add("tags.tag" + i);
             }
             for (int j = 0; j < lNumTimes; j++) {
-
+                tagsMinMaxMap = new ConcurrentHashMap<>();
 
                 //entire range with Equality filter and tags exist
-                Query lQuery = getMinMaxEqualityAndTagsExist(tagsList, j);
+                Query lQuery = getMinMaxEqualityAndTagsExistAsc(tagsList, j);
 
 
+                int lNumRowsScanned = 0;
                 try (DocumentStore lStore1 = mConnection.getStore(mTableName)) {
                     try (QueryResult lqs1 = lStore1.find(lQuery)) {
-//                            mLOG.info(lqs1.getQueryPlan());
-                        for (Document lRes : lqs1) {
-                            // populate the tagsMap
+                        System.out.println(lqs1.getQueryPlan());
 
-                            Map tagsInDoc = lRes.getMap(tags);
-                            tagsList.parallelStream().forEach((tag) -> {
+                        for (Document lRes : lqs1) {
+                            lNumRowsScanned++;
+                            // populate the tagsMap
+                            tagsList.stream().forEach((tag) -> {
 
                                 //for each tag which exists in the result
-                                if(lRes.getValue(tag) != null){
+                                if (lRes.getValue(tag) != null) {
 
                                     //map doesnt have the tag, put the processed time as min and max
-                                    if(!tagsMinMaxMap.containsKey(tag)) {
+                                    if (!tagsMinMaxMap.containsKey(tag)) {
                                         tagsMinMaxMap.put(tag
                                                 , new TagMinMaxValue(lRes.getTimestamp(processedTime)
-                                                        ,lRes.getTimestamp(processedTime)
+                                                        , lRes.getTimestamp(processedTime)
                                                         , lRes.getIdString()
                                                         , lRes.getIdString()));
                                     } else { //tag exists in the map, update the max processed time and id
 
                                         TagMinMaxValue tagMinMaxValueExist = tagsMinMaxMap.get(tag);
-
                                         tagMinMaxValueExist.setProcessedTimeMax(lRes.getTimestamp(processedTime));
                                         tagMinMaxValueExist.setMaxId(lRes.getIdString());
                                     }
-
                                 }
                             });
+
+                            if(lNumRowsScanned == 7599)
+                                break;
+
+//                            if(tagsMinMaxMap.size() == numTags)
+//                                break;
+                        }
+                    }
+                }
+
+                lQuery = getMinMaxEqualityAndTagsExistDesc(tagsList, j);
+                lNumRowsScanned = 0;
+                try (DocumentStore lStore1 = mConnection.getStore(mTableName)) {
+                    try (QueryResult lqs1 = lStore1.find(lQuery)) {
+                        System.out.println(lqs1.getQueryPlan());
+
+                        for (Document lRes : lqs1) {
+                            lNumRowsScanned++;
+                            // populate the tagsMap
+                            tagsList.stream().forEach((tag) -> {
+
+                                //for each tag which exists in the result
+                                if (lRes.getValue(tag) != null) {
+
+                                    //map doesnt have the tag, put the processed time as min and max
+                                    if (!tagsMinMaxMap.containsKey(tag)) {
+                                        tagsMinMaxMap.put(tag
+                                                , new TagMinMaxValue(lRes.getTimestamp(processedTime)
+                                                        , lRes.getTimestamp(processedTime)
+                                                        , lRes.getIdString()
+                                                        , lRes.getIdString()));
+                                    } else { //tag exists in the map, update the max processed time and id
+
+                                        TagMinMaxValue tagMinMaxValueExist = tagsMinMaxMap.get(tag);
+                                        tagMinMaxValueExist.setProcessedTimeMax(lRes.getTimestamp(processedTime));
+                                        tagMinMaxValueExist.setMaxId(lRes.getIdString());
+                                    }
+                                }
+                            });
+
+                            if(lNumRowsScanned == 7599)
+                                break;
+
+//                            if(tagsMinMaxMap.size() == numTags)
+//                                break;
                         }
                     }
                 }
@@ -148,7 +200,9 @@ public class MinMaxAggregation {
                 for(Map.Entry<String, TagMinMaxValue> entry : tagsMinMaxMap.entrySet()){
                     System.out.println("key : " + entry.getKey() + " " + entry.getValue());
                 }
+                System.out.println("Num scanned rows : " + lNumRowsScanned * 2);
                 System.out.println();
+
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -158,12 +212,12 @@ public class MinMaxAggregation {
     }
 
 
-    private void findMinMaxWithParallelQueries() {
+    private void findMinMaxWithParallelQueries(int lNumTimes) {
 
 
         try {
-
-            for (int j = 0; j < numTimes; j++) {
+            final int[] queryCount = {0};
+            for (int j = 0; j < lNumTimes; j++) {
 
 
                 List<Pair<Query, Query>> queryList = new ArrayList<>();
@@ -180,10 +234,15 @@ public class MinMaxAggregation {
                     queryList.add(getMinMaxMatchesAndTagExists(i));
                 }
 
+
                 queryList.parallelStream().forEach((lQPair) -> {
                     try (DocumentStore lStore1 = mConnection.getStore(mTableName)) {
                         try (QueryResult lqs1 = lStore1.find(lQPair.getFirst())) {
-//                            mLOG.info(lqs1.getQueryPlan());
+
+                            if(queryCount[0] == 0 ) {
+                                System.out.println(lqs1.getQueryPlan());
+                                queryCount[0]++;
+                            }
                             for (Document lRes : lqs1) {
 //                                mLOG.info(lRes.getIdString());
                             }
@@ -388,7 +447,7 @@ public class MinMaxAggregation {
     }
 
 
-    private Query getMinMaxEqualityAndTagsExist(List<String> tagsList, int i){
+    private Query getMinMaxEqualityAndTagsExistAsc(List<String> tagsList, int i){
 
 
         String idPred = new String(wellsIdArr[i % wellsIdArr.length])
@@ -406,11 +465,12 @@ public class MinMaxAggregation {
                         , OTimestamp.parse(ptEnd))
                 .is(wellIdLogId, QueryCondition.Op.EQUAL, idPred);
 
-        lCondEqAndTagsExist.or();
-        for(String tag: tagsList)
-            lCondEqAndTagsExist.exists(tag);
-
-        lCondEqAndTagsExist.close()
+//        lCondEqAndTagsExist.or();
+//        for(String tag: tagsList)
+//            lCondEqAndTagsExist.exists(tag);
+//
+//        lCondEqAndTagsExist.close();
+        lCondEqAndTagsExist
                 .close()
                 .build();
 
@@ -419,11 +479,49 @@ public class MinMaxAggregation {
                 .where(lCondEqAndTagsExist)
                 .orderBy(processedTime, SortOrder.ASC)
                 .setOption(OjaiOptions.OPTION_USE_INDEX, wellid_logid_pt_idx_asc_tags_included)
-                .limit(1000)
                 .build();
 
 
         return lQueryAscEqAndTagsExist;
+
+    }
+
+    private Query getMinMaxEqualityAndTagsExistDesc(List<String> tagsList, int i){
+
+
+        String idPred = new String(wellsIdArr[i % wellsIdArr.length])
+                + "_" + new String(logIdArr[i % logIdArr.length]);
+
+        //eq range pruning with or on all tags
+        QueryCondition lCondEqAndTagsExist = mDriver
+                .newCondition()
+                .and()
+                .is(processedTime
+                        , QueryCondition.Op.GREATER_OR_EQUAL
+                        , OTimestamp.parse(ptStart))
+                .is(processedTime
+                        , QueryCondition.Op.LESS_OR_EQUAL
+                        , OTimestamp.parse(ptEnd))
+                .is(wellIdLogId, QueryCondition.Op.EQUAL, idPred);
+
+//        lCondEqAndTagsExist.or();
+//        for(String tag: tagsList)
+//            lCondEqAndTagsExist.exists(tag);
+//
+//        lCondEqAndTagsExist.close();
+        lCondEqAndTagsExist
+                .close()
+                .build();
+
+        Query lQueryDescEqAndTagsExist = mDriver.newQuery();
+        lQueryDescEqAndTagsExist.select(DocumentConstants.ID_KEY, processedTime, tags)
+                .where(lCondEqAndTagsExist)
+                .orderBy(processedTime, SortOrder.DESC)
+                .setOption(OjaiOptions.OPTION_USE_INDEX, wellid_logid_pt_idx_desc_tags_included)
+                .build();
+
+
+        return lQueryDescEqAndTagsExist;
 
     }
 }
