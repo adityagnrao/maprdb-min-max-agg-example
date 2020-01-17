@@ -25,15 +25,14 @@ import com.mapr.ojai.store.impl.OjaiOptions;
 public class AggregationFunctions {
   // TODO: Replace with the appropriate logging library used by the application
   private final static Logger LOGGER = Logger.getLogger(AggregationFunctions.class.getSimpleName());
-
-  private static final FieldPath FIELDPATH_WELLID = FieldPath.parseFrom("well_id");
-  private static final FieldPath FIELDPATH_LOGID = FieldPath.parseFrom("log_id");
+  private static final FieldPath FIELDPATH_WELLID = FieldPath.parseFrom("wellsId");
+  private static final FieldPath FIELDPATH_LOGID = FieldPath.parseFrom("logId");
   private static final FieldPath FIELDPATH_PROCESSEDTIME = FieldPath.parseFrom("processed_time");
   private static final FieldPath FIELDPATH_TAGS = FieldPath.parseFrom("tags");
 
   // name of the ascending/descending indexes, can be passed as the parameter to the functions
-  private static final String ascIndexName = "wellid_asc_logid_asc_pt_idx_asc_tags_included";
-  private static final String descIndexName = "wellid_asc_logid_asc_pt_idx_desc_tags_included";
+  protected static final String ascIndexName = "wellid_asc_logid_asc_pt_idx_asc_tags_included";
+  protected static final String descIndexName = "wellid_asc_logid_asc_pt_idx_desc_tags_included";
 
 
   public static Map<String, Pair<Document, Document>> getDocumentsWithMinMaxForTags(
@@ -42,11 +41,11 @@ public class AggregationFunctions {
       final String refWellId, final String refLogId,
       final long refStartProcessingTimeInclusive, final long refStopProcessingTimeInclusive) {
 
-    // scan the ascending index to find the min processed time for the tags
+    // scan the ascending index to find the min processed time for the TAGS_KEY
     final Map<String, String> tag2IdMinMap = findIdsForTags(ojaiConnection, maprdbTable, tagsList, refWellId,
         refLogId, refStartProcessingTimeInclusive, refStopProcessingTimeInclusive, SortOrder.ASC, ascIndexName);
 
-    // scan the descending index to find the max processed time for the tags
+    // scan the descending index to find the max processed time for the TAGS_KEY
     final Map<String, String> tag2IdMaxMap = findIdsForTags(ojaiConnection, maprdbTable, tagsList, refWellId,
         refLogId, refStartProcessingTimeInclusive, refStopProcessingTimeInclusive, SortOrder.DESC, descIndexName);
 
@@ -102,15 +101,16 @@ public class AggregationFunctions {
     final Set<String> tagsSet = new HashSet<>(tagsList);
     final Map<String, String> tag2IdMap = new HashMap<>();
 
+    LOGGER.info(indexScanQuery.asJsonString());
     try (final QueryResult queryResult = maprdbTable.find(indexScanQuery)) {
       LOGGER.info(queryResult.getQueryPlan().asJsonString()); // TODO: change to debug
 
       for (final Document document : queryResult) {
         numRowsScanned++;
-        // extract the tags MAP, so that lookup is faster in the next step
+        // extract the TAGS_KEY MAP, so that lookup is faster in the next step
         final Map<String, Object> tagsMapInDocument = document.getMap(FIELDPATH_TAGS);
 
-        // iterate over unseen tags to see if any of them exist in the current document
+        // iterate over unseen TAGS_KEY to see if any of them exist in the current document
         for (final Iterator<String> tagItr = tagsSet.iterator(); tagItr.hasNext();) {
           final String tagNumber = (String) tagItr.next();
           if (tagsMapInDocument.containsKey(tagNumber)) {
@@ -120,8 +120,8 @@ public class AggregationFunctions {
         }
         
         if (tagsSet.isEmpty()) {
-          // all tags are seen, terminate the query and return
-          LOGGER.info("Found all tags, number of fetched document: " + numRowsScanned);  // TODO: change to debug
+          // all TAGS_KEY are seen, terminate the query and return
+          LOGGER.info("Found all TAGS_KEY, number of fetched document: " + numRowsScanned);  // TODO: change to debug
           break;
         }
       }
