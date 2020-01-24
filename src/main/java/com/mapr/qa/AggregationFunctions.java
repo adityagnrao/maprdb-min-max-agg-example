@@ -125,6 +125,11 @@ public class AggregationFunctions {
           break;
         }
       }
+
+      if(!tagsSet.isEmpty()) {
+        LOGGER.info("Found some of the TAGS_KEY, number of fetched document: " + numRowsScanned);
+      }
+
     }
     
     return tag2IdMap;          
