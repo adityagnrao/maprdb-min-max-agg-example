@@ -39,6 +39,7 @@ public class MinMaxAggregation {
     private long startTime;
     private int numRows = 10000000;
     private int numTags = 50;
+    private int scanRange = 100000;
     private static final String PROCESSED_TIME = "processed_time";
     private static final String TAGS_KEY = "tags";
     private static final String TAG_KEY = "tag";
@@ -49,6 +50,7 @@ public class MinMaxAggregation {
     private static final String LOG_ID_KEY = "logId";
     private static final String NUM_ROWS = "numRows";
     private static final String NUM_TAGS = "numTags";
+    private static final String SCAN_RANGE = "scanRange";
 
     String wellsId = wellsIdArr[0];
     String logId = logIdArr[0];
@@ -254,6 +256,9 @@ public class MinMaxAggregation {
                 if(parser.hasOption(NUM_TAGS))
                     numTags = Integer.parseInt(parser.getOptionValue(NUM_TAGS));
 
+                if(parser.hasOption(SCAN_RANGE))
+                    scanRange = Integer.parseInt(parser.getOptionValue(SCAN_RANGE));
+
                 parsingComplete = true;
             }
             else {
@@ -336,9 +341,17 @@ public class MinMaxAggregation {
                 .isRequired(false)
                 .create(NUM_TAGS);
 
+        Option optionScanRange = OptionBuilder
+                .withArgName(SCAN_RANGE)
+                .hasArg()
+                .withDescription("number of rows to load before loading a row with all tags : [ " + scanRange + " ]" )
+                .isRequired(false)
+                .create(SCAN_RANGE);
+
         loadOptions.addOption(optionTable);
         loadOptions.addOption(optionNumRows);
         loadOptions.addOption(optionNumTags);
+        loadOptions.addOption(optionScanRange);
 
     }
 
@@ -428,7 +441,7 @@ public class MinMaxAggregation {
         }
         for(int i=0; i <  lNumTagMaps - 1;i++) {
             Map<String, Double> tagsMap2 = new HashMap<>();
-            for (int k = 0; k < lRand.nextInt(numTags); k++) {
+            for (int k = 0; k < lRand.nextInt(numTags - 1); k++) {
                 if (k % 2 == 0)
                     tagsMap2.put(TAG_KEY + k, piVal);
                 else
@@ -436,7 +449,6 @@ public class MinMaxAggregation {
             }
             tagMapList.add(tagsMap2);
         }
-        tagMapList.add(tagsMap1);
 
         //generate data and load
         for(int j =0; j < (numRows/ numThreads); j++) {
@@ -451,7 +463,7 @@ public class MinMaxAggregation {
                 ldoc.set(PROCESSED_TIME, new OTimestamp(System.currentTimeMillis()))
                         .set(receivedTime, new OTimestamp(System.currentTimeMillis()))
                         .set(mod, lRand.nextBoolean() == true ? 1 : 0)
-                        .set(TAGS_KEY, tagMapList.get(lRand.nextInt(tagMapList.size())))
+                        .set(TAGS_KEY, i % scanRange == 0 ? tagsMap1 : tagMapList.get(lRand.nextInt(tagMapList.size())))
                         .set(idKey, id)
                         .set(WELLS_ID_KEY, wellId)
                         .set(LOG_ID_KEY, logId)
