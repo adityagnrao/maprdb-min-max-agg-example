@@ -320,12 +320,20 @@ public class MinMaxAggregation {
                 .isRequired(false)
                 .create(LOG_ID_KEY);
 
+        Option optionNumTags = OptionBuilder
+                .withArgName(NUM_TAGS)
+                .hasArg()
+                .withDescription("number of rows to load : [ " + numTags + " ]" )
+                .isRequired(false)
+                .create(NUM_TAGS);
+
         aggregateOptions.addOption(optionTable);
         aggregateOptions.addOption(optionPTStart);
         aggregateOptions.addOption(optionPTEnd);
         aggregateOptions.addOption(optionFields);
         aggregateOptions.addOption(optionWellsId);
         aggregateOptions.addOption(optionlogId);
+        aggregateOptions.addOption(optionNumTags);
 
         Option optionNumRows = OptionBuilder
                 .withArgName(NUM_ROWS)
@@ -333,13 +341,6 @@ public class MinMaxAggregation {
                 .withDescription("number of rows to load : [ " + numRows + " ]" )
                 .isRequired(false)
                 .create(NUM_ROWS);
-
-        Option optionNumTags = OptionBuilder
-                .withArgName(NUM_TAGS)
-                .hasArg()
-                .withDescription("number of rows to load : [ " + numTags + " ]" )
-                .isRequired(false)
-                .create(NUM_TAGS);
 
         Option optionScanRange = OptionBuilder
                 .withArgName(SCAN_RANGE)
