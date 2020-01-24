@@ -323,7 +323,7 @@ public class MinMaxAggregation {
         Option optionNumTags = OptionBuilder
                 .withArgName(NUM_TAGS)
                 .hasArg()
-                .withDescription("number of rows to load : [ " + numTags + " ]" )
+                .withDescription("max number of tags in each row : [ " + numTags + " ]" )
                 .isRequired(false)
                 .create(NUM_TAGS);
 
