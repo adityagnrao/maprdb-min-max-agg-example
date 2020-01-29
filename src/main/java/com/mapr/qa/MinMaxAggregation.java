@@ -464,7 +464,7 @@ public class MinMaxAggregation {
                 ldoc.set(PROCESSED_TIME, new OTimestamp(System.currentTimeMillis()))
                         .set(receivedTime, new OTimestamp(System.currentTimeMillis()))
                         .set(mod, lRand.nextBoolean() == true ? 1 : 0)
-                        .set(TAGS_KEY, i % scanRange == 0 ? tagsMap1 : tagMapList.get(lRand.nextInt(tagMapList.size())))
+                        .set(TAGS_KEY, (i * j) % scanRange == 0 ? tagsMap1 : tagMapList.get(lRand.nextInt(tagMapList.size())))
                         .set(idKey, id)
                         .set(WELLS_ID_KEY, wellId)
                         .set(LOG_ID_KEY, logId)
