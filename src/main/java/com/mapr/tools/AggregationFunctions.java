@@ -1,5 +1,5 @@
 /* Copyright (c) 2020 & onwards. MapR Tech, Inc., All rights reserved */
-package com.mapr.qa;
+package com.mapr.tools;
 
 import java.util.HashMap;
 import java.util.HashSet;

@@ -1,4 +1,4 @@
-package com.mapr.qa;
+package com.mapr.tools;
 
 /**
  * A Pair <F,S> data structure

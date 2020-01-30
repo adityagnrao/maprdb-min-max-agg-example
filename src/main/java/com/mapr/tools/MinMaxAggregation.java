@@ -1,4 +1,4 @@
-package com.mapr.qa;
+package com.mapr.tools;
 
 import com.mapr.db.Admin;
 import com.mapr.db.MapRDB;
