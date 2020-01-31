@@ -40,6 +40,7 @@ public class MinMaxAggregation {
     private int numRows = 10000000;
     private int numTags = 50;
     private int scanRange = 100000;
+    private int batchSize = 100;
     private static final String PROCESSED_TIME = "processed_time";
     private static final String TAGS_KEY = "tags";
     private static final String TAG_KEY = "tag";
@@ -51,6 +52,7 @@ public class MinMaxAggregation {
     private static final String NUM_ROWS = "numRows";
     private static final String NUM_TAGS = "numTags";
     private static final String SCAN_RANGE = "scanRange";
+    private static final String BATCH_SIZE = "batchSize";
 
     String wellsId = wellsIdArr[0];
     String logId = logIdArr[0];
@@ -256,6 +258,9 @@ public class MinMaxAggregation {
                 if(parser.hasOption(NUM_TAGS))
                     numTags = Integer.parseInt(parser.getOptionValue(NUM_TAGS));
 
+                if(parser.hasOption(BATCH_SIZE))
+                    batchSize = Integer.parseInt(parser.getOptionValue(BATCH_SIZE));
+
                 if(parser.hasOption(SCAN_RANGE))
                     scanRange = Integer.parseInt(parser.getOptionValue(SCAN_RANGE));
 
@@ -342,6 +347,13 @@ public class MinMaxAggregation {
                 .isRequired(false)
                 .create(NUM_ROWS);
 
+        Option optionBatchSize = OptionBuilder
+                .withArgName(BATCH_SIZE)
+                .hasArg()
+                .withDescription("number of rows to load in a batch : [ " + batchSize + " ]" )
+                .isRequired(false)
+                .create(BATCH_SIZE);
+
         Option optionScanRange = OptionBuilder
                 .withArgName(SCAN_RANGE)
                 .hasArg()
@@ -351,6 +363,7 @@ public class MinMaxAggregation {
 
         loadOptions.addOption(optionTable);
         loadOptions.addOption(optionNumRows);
+        loadOptions.addOption(optionBatchSize);
         loadOptions.addOption(optionNumTags);
         loadOptions.addOption(optionScanRange);
 
@@ -433,7 +446,7 @@ public class MinMaxAggregation {
         int lNumTagMaps = 50;
         Double piVal = new Double(3.14);
         Double halfPercent = new Double(0.5);
-        int numThreads = 100;
+        int numThreads = 10;
 
         //build TAGS_KEY sets
         Map<String, Double> tagsMap1 = new HashMap<>();
@@ -452,30 +465,37 @@ public class MinMaxAggregation {
         }
 
         //generate data and load
-        for(int j =0; j < (numRows/ numThreads); j++) {
+        for(int iter = 0; iter < (numRows / numThreads / batchSize); iter++) {
 
-            List<Document> docList = new ArrayList<>();
+            List<List<Document>> listOfdocList = new ArrayList<>();
+            for (int thread = iter * numThreads; thread < (iter * numThreads) + numThreads; thread++) {
+                List<Document> docList = new ArrayList<>();
+                for(int batch = 0; batch < batchSize; batch++) {
+                    String wellId = wellsIdArr[thread % wellsIdArr.length];
+                    String logId = logIdArr[iter % logIdArr.length];
+                    String id = wellId + DASH + logId;
+                    Document ldoc = Json.newDocument();
+                    ldoc.set(PROCESSED_TIME, new OTimestamp(System.currentTimeMillis()))
+                            .set(receivedTime, new OTimestamp(System.currentTimeMillis()))
+                            .set(mod, lRand.nextBoolean() == true ? 1 : 0)
+                            .set(TAGS_KEY, (thread * iter * batch) % scanRange == 0 ? tagsMap1
+                                    : tagMapList.get(lRand.nextInt(tagMapList.size())))
+                            .set(idKey, id)
+                            .set(WELLS_ID_KEY, wellId)
+                            .set(LOG_ID_KEY, logId)
+                            .setId(id + DASH + System.currentTimeMillis());
+                    docList.add(ldoc);
+                }
+                listOfdocList.add(docList);
 
-            for (int i = j * numThreads; i < (j * numThreads) + numThreads; i++) {
-                String wellId = wellsIdArr[i % wellsIdArr.length];
-                String logId = logIdArr[j % logIdArr.length];
-                String id = wellId + DASH + logId;
-                Document ldoc = Json.newDocument();
-                ldoc.set(PROCESSED_TIME, new OTimestamp(System.currentTimeMillis()))
-                        .set(receivedTime, new OTimestamp(System.currentTimeMillis()))
-                        .set(mod, lRand.nextBoolean() == true ? 1 : 0)
-                        .set(TAGS_KEY, (i * j) % scanRange == 0 ? tagsMap1 : tagMapList.get(lRand.nextInt(tagMapList.size())))
-                        .set(idKey, id)
-                        .set(WELLS_ID_KEY, wellId)
-                        .set(LOG_ID_KEY, logId)
-                        .setId(id + DASH + System.currentTimeMillis());
-                docList.add(ldoc);
             }
 
 
-            docList.parallelStream().forEach((lDoc) -> {
+            listOfdocList.parallelStream().forEach((lDocList) -> {
                 try (DocumentStore lStore1 = mConnection.getStore(mTableName)) {
-                    lStore1.insertOrReplace(lDoc);
+                    lDocList.stream().forEach((lDoc) -> {
+                        lStore1.insertOrReplace(lDoc);
+                    });
                 }
             });
         }
