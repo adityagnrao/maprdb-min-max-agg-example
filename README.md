@@ -5,4 +5,4 @@
     Run steps
     
     mvn clean install
-    java -cp `mapr classpath`:target/minmaxaggregation-1.0-SNAPSHOT.jar com.mapr.qa.MinMaxAggregation
+    java -cp `mapr classpath`:target/minmaxaggregation-1.0-SNAPSHOT.jar com.mapr.tools.MinMaxAggregation
